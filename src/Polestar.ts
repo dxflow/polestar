@@ -156,6 +156,28 @@ export class Polestar {
     )
   }
 
+  /**
+   * Preload modules and cache before evaluate.
+   * @param id id you want to preload, ex. 'npm://react'
+   * @param preloadedModule preloaded module, ex. React
+   * @param css css code
+   */
+  preloadModule(
+    id: string,
+    preloadedModule: any,
+    css?: string) {
+    return this.prepareModuleWrapper(
+      id,
+      '',
+      [],
+      undefined,
+      [],
+      css,
+      true,
+      preloadedModule
+    );
+  }
+
   private prepareModuleWrapper(
     id: string,
     code: string,
@@ -163,6 +185,8 @@ export class Polestar {
     dependencyVersionRanges?: VersionRanges,
     requiredBy: ModuleWrapper[] = [], 
     css?: string,
+    isPreloadModule?: boolean,
+    preloadedModule?: any,
   ): Promise<ModuleWrapper> {
     if (this.error) {
       return Promise.reject(this.error)
@@ -224,13 +248,16 @@ export class Polestar {
         let args = [define].concat(globalValues);
         fn.apply(this.options.moduleThis, args)
       }
-      else {
+      else if (!isPreloadModule) {
         globalNames.push('require','module','exports')
         prepareDependencies = dependencies
         let moduleFunction = createFunction(globalNames, code)
         let boundModuleFunction = Function.prototype.bind.apply(moduleFunction, [this.options.moduleThis].concat(globalValues))
 
         moduleWrapper = new ModuleWrapper(this, id, dependencyVersionRanges, boundModuleFunction)
+      } else {
+        moduleWrapper = new ModuleWrapper(this, id, dependencyVersionRanges, () => {});
+        moduleWrapper.module.exports = preloadedModule;
       }
 
       this.resolver.registerId(id)
@@ -238,10 +265,15 @@ export class Polestar {
 
       let preparedPromise = moduleWrapper.prepare(prepareDependencies, requiredBy)
 
-      if (requiredBy.length === 0) {
-        preparedPromise.catch(this.setError)
-        preparedPromise = preparedPromise.then(this.handleUnrequiredPrepared)
-        preparedPromise.catch(this.setError)
+      if (!isPreloadModule) {
+        if (requiredBy.length === 0) {
+          preparedPromise.catch(this.setError)
+          preparedPromise = preparedPromise.then(this.handleUnrequiredPrepared)
+          preparedPromise.catch(this.setError)
+        }
+      } else {
+        // assume we have the module already executed
+        moduleWrapper.module.loaded = true
       }
 
       return preparedPromise

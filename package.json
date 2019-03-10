@@ -1,5 +1,5 @@
 {
-  "name": "polestar",
+  "name": "@dxflow/polestar",
   "author": "James K Nelson <james@jamesknelson.com>",
   "version": "0.1.2",
   "description": "A commonjs-ish module loader for browsers.",
