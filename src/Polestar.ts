@@ -130,6 +130,7 @@ export class Polestar {
   clearError() {
     if (this.error) {
       this.error = null;
+      this.loads = {};
       if (this.errorDetail) {
         const errorModule = this.moduleWrappers[this.errorDetail.errorModuleId];
         if (errorModule) {
