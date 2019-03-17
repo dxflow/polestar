@@ -55,6 +55,7 @@ export class Polestar {
   }
   private resolver: Resolver
   private error?: any
+  private errorDetail?: { errorModuleId: string }
   private hasCalledOnEntry = false
   private nextEntryId = 1
 
@@ -124,6 +125,18 @@ export class Polestar {
     }
 
     return preparedModuleWrapperPromise
+  }
+
+  clearError() {
+    if (this.error) {
+      this.error = null;
+      if (this.errorDetail) {
+        const errorModule = this.moduleWrappers[this.errorDetail.errorModuleId];
+        if (errorModule) {
+          this.moduleWrappers[this.errorDetail.errorModuleId] = undefined;
+        }
+      }
+    }
   }
 
   private handleFetchResult = (result: FetchResult): Promise<ModuleWrapper> => {
@@ -267,9 +280,9 @@ export class Polestar {
 
       if (!isPreloadModule) {
         if (requiredBy.length === 0) {
-          preparedPromise.catch(this.setError)
+          preparedPromise.catch(error => this.setError(error, { errorModuleId: id }))
           preparedPromise = preparedPromise.then(this.handleUnrequiredPrepared)
-          preparedPromise.catch(this.setError)
+          preparedPromise.catch(error => this.setError(error, { errorModuleId: id }))
         }
       } else {
         // assume we have the module already executed
@@ -279,7 +292,7 @@ export class Polestar {
       return preparedPromise
     }
     catch (error) {
-      this.setError(error)
+      this.setError(error, { errorModuleId: id })
       return Promise.reject(error)
     }
   }
@@ -294,7 +307,7 @@ export class Polestar {
 
   // If we encounter any error while loading/executing modules, stop loading
   // subsequent modules and notify our owner.
-  private setError = (error) => {
+  private setError = (error, errorDetail?) => {
     let lastError = this.error
     this.error = error
     if (lastError !== error) {
