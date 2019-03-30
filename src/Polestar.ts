@@ -308,9 +308,10 @@ export class Polestar {
 
   // If we encounter any error while loading/executing modules, stop loading
   // subsequent modules and notify our owner.
-  private setError = (error, errorDetail?) => {
+  private setError = (error, errorDetail?:{ errorModuleId: string }) => {
     let lastError = this.error
     this.error = error
+    this.errorDetail = errorDetail
     if (lastError !== error) {
       if (this.options.onError) {
         this.options.onError(error)
