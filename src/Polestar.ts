@@ -127,6 +127,10 @@ export class Polestar {
     return preparedModuleWrapperPromise
   }
 
+  unload(url: string) {
+    delete this.loads[url];
+  }
+
   clearError() {
     if (this.error) {
       this.error = null;
