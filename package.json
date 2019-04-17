@@ -1,7 +1,7 @@
 {
   "name": "@dxflow/polestar",
   "author": "James K Nelson <james@jamesknelson.com>",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A commonjs-ish module loader for browsers.",
   "license": "MIT",
   "main": "dist/umd/polestar.js",
@@ -13,6 +13,9 @@
   "tags": [
     "commonjs"
   ],
+  "config": {
+    "buildDest": "../../packages/webview-app/node_modules/@dxflow/polestar/"
+  },
   "scripts": {
     "clean": "rimraf dist",
     "build:es": "cross-env FORMAT=es rollup -c",
@@ -21,6 +24,9 @@
     "build:types": "tsc --pretty --declaration --declarationDir dist/types --emitDeclarationOnly",
     "build": "npm run clean && npm run build:types && npm run build:es && npm run build:umd && npm run build:umd:min",
     "build:watch": "npm run build:es -- --watch",
+    "cp:dist": "mkdir -p $npm_package_config_buildDest/dist && cp -r dist/ $npm_package_config_buildDest/dist",
+    "cp:otherfiles": "cp package.json $npm_package_config_buildDest && cp LICENSE.md $npm_package_config_buildDest && cp README.md $npm_package_config_buildDest",
+    "postbuild": "rimraf $npm_package_config_buildDest && npm run cp:dist && npm run cp:otherfiles",
     "prepublish": "npm run test && npm run build",
     "test": "jest",
     "test:watch": "jest --watch"

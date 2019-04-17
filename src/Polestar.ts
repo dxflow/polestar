@@ -366,6 +366,7 @@ export class ModuleWrapper {
   // as the modules we're waiting for won't exist when we start waiting for
   // them.
   waitingFor: string[]
+  dynamicImports: Map<string, Promise<ModuleWrapper>>
 
   constructor(
     loader: Polestar,
@@ -383,6 +384,7 @@ export class ModuleWrapper {
       this.resolvePrepared = resolve
       this.rejectPrepared = reject
     })
+    this.dynamicImports = new Map()
 
     const require: RequireFunction = ((request) => {
       let requestedId = require.resolve(request)
@@ -392,6 +394,19 @@ export class ModuleWrapper {
       }
 
       let requestedWrapper = loader.moduleWrappers[requestedId]
+      if (!requestedWrapper) {
+        return this.dynamicImports.get(request)
+          .then(moduleWrapper => {
+            if (!moduleWrapper.module.loaded) {
+              moduleWrapper.execute()
+            }
+            return moduleWrapper.module.exports
+          })
+          .catch(error => {
+            throw new UnresolvableError(request, id)
+          });
+      }
+
       if (!requestedWrapper.module.loaded) {
         requestedWrapper.execute()
       }
@@ -402,7 +417,11 @@ export class ModuleWrapper {
     require.resolve = (request) => {
       let result = this.polestar.resolve(request, id, dependencyVersionRanges)
       if (result.type !== ResolutionType.Available) {
-        throw new UnresolvableError(request, id)
+        const url = result.url
+        const dynamicImportModule = this.polestar.loadWrapper(url, this, request)
+        this.dynamicImports.set(request, dynamicImportModule)
+        
+        return url
       }
       return result.id
     }
