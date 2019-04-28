@@ -127,8 +127,35 @@ export class Polestar {
     return preparedModuleWrapperPromise
   }
 
-  unload(url: string) {
-    delete this.loads[url];
+  async unload(id: string) {
+    const modulesToUnload = new Set([id]);
+    let startModuleWrapper = this.moduleWrappers[id];
+    // recursively find ids to unload
+    const prepareUnloadModuleWrapper = (moduleWrapper: ModuleWrapper) => {
+      moduleWrapper.requiredBy.forEach(requiredModule => {
+        modulesToUnload.add(requiredModule.module.id);
+        prepareUnloadModuleWrapper(requiredModule);
+      });
+    };
+    prepareUnloadModuleWrapper(startModuleWrapper);
+
+    Object.keys(this.loads).forEach(async url => {
+      try {
+        let preparedModule = await this.loads[url].preparedModuleWrapperPromise;
+        if (modulesToUnload.has(preparedModule.module.id)) {
+          delete this.loads[url];
+          if (this.resolver instanceof DefaultResolver) {
+            delete this.resolver.knownURLs[url];
+          }
+        }
+      } catch(error) {}
+    });
+
+    Object.keys(this.moduleWrappers).forEach(id => {
+      if (modulesToUnload.has(id)) {
+        delete this.moduleWrappers[id];
+      }
+    });
   }
 
   clearError() {
