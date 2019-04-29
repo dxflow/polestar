@@ -132,10 +132,14 @@ export class Polestar {
     let startModuleWrapper = this.moduleWrappers[id];
     // recursively find ids to unload
     const prepareUnloadModuleWrapper = (moduleWrapper: ModuleWrapper) => {
-      moduleWrapper.requiredBy.forEach(requiredModule => {
-        modulesToUnload.add(requiredModule.module.id);
-        prepareUnloadModuleWrapper(requiredModule);
-      });
+      // try to find from load
+      // NOTE if there's an error moduelWrapper could be null
+      if (moduleWrapper) {
+        moduleWrapper.requiredBy.forEach(requiredModule => {
+          modulesToUnload.add(requiredModule.module.id);
+          prepareUnloadModuleWrapper(requiredModule);
+        });
+      }
     };
     prepareUnloadModuleWrapper(startModuleWrapper);
 
@@ -144,9 +148,6 @@ export class Polestar {
         let preparedModule = await this.loads[url].preparedModuleWrapperPromise;
         if (modulesToUnload.has(preparedModule.module.id)) {
           delete this.loads[url];
-          if (this.resolver instanceof DefaultResolver) {
-            delete this.resolver.knownURLs[url];
-          }
         }
       } catch(error) {}
     });
@@ -156,17 +157,48 @@ export class Polestar {
         delete this.moduleWrappers[id];
       }
     });
+    
+    if (this.resolver instanceof DefaultResolver) {
+      const knownURLs = (this.resolver as DefaultResolver).knownURLs;
+      Object.keys(knownURLs).forEach(url => {
+        if(modulesToUnload.has(knownURLs[url])) {
+          delete knownURLs[url];
+        }
+      });
+    }
   }
 
-  clearError() {
+  async clearError() {
     if (this.error) {
       this.error = null;
-      this.loads = {};
-      if (this.errorDetail) {
-        const errorModule = this.moduleWrappers[this.errorDetail.errorModuleId];
-        if (errorModule) {
-          this.moduleWrappers[this.errorDetail.errorModuleId] = undefined;
+
+      await Promise.all(Object.keys(this.loads).map(url => {
+        if (this.loads[url].preparedModuleWrapperPromise) {
+          return this.loads[url].preparedModuleWrapperPromise.catch(error => {
+            delete this.loads[url];
+          });
         }
+        return Promise.resolve();
+      }));
+
+      const moduleIds = new Set();
+      await Promise.all(Object.keys(this.moduleWrappers).map(id => {
+        if (this.moduleWrappers[id].preparedPromise) {
+          return this.moduleWrappers[id].preparedPromise.catch(error => {
+            moduleIds.add(id);
+            delete this.moduleWrappers[id];
+          });
+        }
+        return Promise.resolve();
+      }));
+
+      if (this.resolver instanceof DefaultResolver) {
+        const knownURLs = (this.resolver as DefaultResolver).knownURLs;
+        Object.keys(knownURLs).forEach(url => {
+          if (moduleIds.has(knownURLs[url])) {
+            delete knownURLs[url];
+          }
+        });
       }
     }
   }
