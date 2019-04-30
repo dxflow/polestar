@@ -270,11 +270,20 @@ export class Polestar {
     }
 
     if (css) {
-      let head = document.head || document.getElementsByTagName('head')[0]
-      let style = document.createElement('style')
-      style.type = 'text/css'
+      let style = document.getElementById(id) as HTMLStyleElement;
+      if (style && style.dataset.polestarStyleNode) {
+        while (style.firstChild) {
+          style.removeChild(style.firstChild)
+        }
+      } else {
+        style = document.createElement('style')
+        style.type = 'text/css'
+        style.dataset.polestarStyleNode = 'true';
+        style.id = id
+        let head = document.head || document.getElementsByTagName('head')[0]
+        head.appendChild(style)
+      }
       style.appendChild(document.createTextNode(css))
-      head.appendChild(style)
     }
 
     try {
