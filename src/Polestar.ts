@@ -133,11 +133,14 @@ export class Polestar {
     // recursively find ids to unload
     const prepareUnloadModuleWrapper = (moduleWrapper: ModuleWrapper) => {
       // try to find from load
-      // NOTE if there's an error moduelWrapper could be null
+      // NOTE if there's an error moduleWrapper could be null
       if (moduleWrapper) {
         moduleWrapper.requiredBy.forEach(requiredModule => {
-          modulesToUnload.add(requiredModule.module.id);
-          prepareUnloadModuleWrapper(requiredModule);
+          const requiredModuleId = requiredModule.module.id;
+          if (!modulesToUnload.has(requiredModuleId)) {
+            modulesToUnload.add(requiredModuleId);
+            prepareUnloadModuleWrapper(requiredModule);
+          }
         });
       }
     };
